@@ -1,4 +1,4 @@
-name: ALL Build
+name: Cross-Platform Build
 
 on:
   workflow_dispatch:
@@ -46,8 +46,11 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Install PyInstaller
+        run: pip install pyinstaller
+
       - name: Create Executable
-        run: pyinstaller --onefile --name "love_heart_linux" --windowed love_heart.py
+        run: pyinstaller --onefile --name "love_heart_linux" love_heart.py
 
   build-android:
     runs-on: ubuntu-latest
@@ -63,21 +66,15 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Install Android build tools
+      - name: Install buildozer and other dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y openjdk-8-jdk wget
-          wget https://dl.google.com/android/repository/sdk-tools-linux-4333796.zip
-          mkdir -p $HOME/Android/Sdk
-          unzip -q sdk-tools-linux-4333796.zip -d $HOME/Android/Sdk
-          echo "export ANDROID_HOME=$HOME/Android/Sdk" >> $HOME/.bashrc
-          echo "export PATH=$PATH:$ANDROID_HOME/tools/bin" >> $HOME/.bashrc
-          source $HOME/.bashrc
-          yes | sdkmanager --licenses
-          sdkmanager --update
-          sdkmanager "platforms;android-28" "build-tools;28.0.3"
+          sudo apt update
+          sudo apt install -y python3-pip python3-setuptools python3-virtualenv
+          sudo apt install -y build-essential ccache git libncurses5:i386 libstdc++6:i386 zlib1g:i386 unzip
+          pip install buildozer cython
 
-      - name: Build for Android
-        run: |
-          pip install p4a
-          p4a apk --private . --package=org.example.love_heart --name=love_heart --version=0.1 --bootstrap=sdl2 --requirements=python3,kivy --arch=arm64-v8a --copy-libs
+      - name: Initialize Buildozer
+        run: buildozer init
+
+      - name: Build APK
+        run: buildozer -v android debug
