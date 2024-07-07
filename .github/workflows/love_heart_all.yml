@@ -51,30 +51,9 @@ jobs:
 
       - name: Create Executable
         run: pyinstaller --onefile --name "love_heart_linux" love_heart.py
-
-  build-android:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-
-      - name: Set up Python
-        uses: actions/setup-python@v2
+        
+      - name: Upload Executable
+        uses: actions/upload-artifact@v3
         with:
-          python-version: '3.12'
-
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-
-      - name: Install buildozer and other dependencies
-        run: |
-          sudo apt update
-          sudo apt install -y python3-pip python3-setuptools python3-virtualenv
-          sudo apt install -y build-essential ccache git libncurses5:i386 libstdc++6:i386 zlib1g:i386 unzip
-          pip install buildozer cython
-
-      - name: Initialize Buildozer
-        run: buildozer init
-
-      - name: Build APK
-        run: buildozer -v android debug
+          name: love_heart_linux
+          path: dist/love_heart_linux
