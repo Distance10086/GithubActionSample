@@ -1,7 +1,7 @@
 import socket
 import threading
 import tkinter as tk
-from tkinter import ttk, messagebox, filedialog
+from tkinter import ttk, filedialog
 from datetime import datetime
 import openpyxl
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -12,8 +12,8 @@ import time
 
 DEFAULT_DNS = "223.5.5.5"
 DEFAULT_DOMAIN_FILE = os.path.join(os.getcwd(), "domain.txt")
-LOG_START = "DNS解析开始：开始时间\n"
-LOG_END = "DNS解析结束：结束时间\n"
+LOG_START = "DNS解析开始：{}\n"
+LOG_END = "DNS解析结束：{}\n"
 LOG_PROCESSING_START = "Excel处理开始...\n"
 LOG_PROCESSING_END = "Excel处理完成，文件保存在{}\n"
 ERROR_MESSAGE = "解析失败"
@@ -27,8 +27,11 @@ def get_ip_addresses(domain, dns_server):
         return ERROR_MESSAGE
 
 def read_domains(file_path):
-    with open(file_path, 'r') as file:
-        return [line.strip() for line in file]
+    try:
+        with open(file_path, 'r') as file:
+            return [line.strip() for line in file]
+    except FileNotFoundError:
+        return None
 
 def clean_ip_addresses(ip_addresses):
     return re.sub(r"[\"']", "", ip_addresses)
@@ -124,27 +127,34 @@ class DomainResolverApp(tk.Tk):
         tk.Entry(domain_frame, textvariable=self.domain_file_path, width=30).grid(row=0, column=1, sticky='ew')
         tk.Button(domain_frame, text="选择域名文件", command=self.choose_domain_file).grid(row=0, column=2, sticky='ew', padx=(5, 0))
 
-        self.progress = ttk.Progressbar(self, mode="determinate")
-        self.progress.grid(row=2, column=0, columnspan=2, sticky='ew', padx=10, pady=(0, 10))
+        progress_frame = tk.Frame(self)
+        progress_frame.grid(row=2, column=0, columnspan=2, sticky='ew', padx=10, pady=(0, 10))
+        self.progress_label_left = tk.Label(progress_frame, text="0%")
+        self.progress_label_left.pack(side=tk.LEFT)
+        self.progress = ttk.Progressbar(progress_frame, mode="determinate")
+        self.progress.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(5, 5))
+        self.progress_label_right = tk.Label(progress_frame, text="0/0")
+        self.progress_label_right.pack(side=tk.RIGHT)
 
         button_frame = tk.Frame(self)
         button_frame.grid(row=3, column=0, columnspan=2, sticky='ew', pady=10)
+        button_frame.grid_columnconfigure(0, weight=1)
+        button_frame.grid_columnconfigure(1, weight=1)
         tk.Button(button_frame, text="开始解析", command=self.start_resolving).grid(row=0, column=0, padx=5)
         tk.Button(button_frame, text="停止解析", command=self.stop_resolving).grid(row=0, column=1, padx=5)
 
         self.log_text = tk.Text(self, height=10)
         self.log_text.grid(row=4, column=0, columnspan=2, sticky='nsew', padx=10, pady=(0, 5))
 
-    def log_message(self, completed, total, elapsed_time):
+    def log_message(self, completed, total, elapsed_time, end=False):
         self.log_text.tag_configure("bold", font=("TkDefaultFont", 10, "bold"))
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         if completed == 0:
-            self.log_text.insert(tk.END, LOG_START.replace("开始时间", current_time), "bold")
-        elif completed == total:
-            self.log_text.insert(tk.END, LOG_END.replace("结束时间", current_time), "bold")
-        else:
-            message = f"进度: {completed}/{total} - 总耗时: {elapsed_time:.2f}秒\n"
-            self.log_text.insert(tk.END, message)
+            self.log_text.insert(tk.END, LOG_START.format(current_time), "bold")
+        elif end:
+            self.log_text.insert(tk.END, LOG_END.format(current_time), "bold")
+            elapsed_msg = f"DNS解析耗时: {elapsed_time:.2f}秒\n"
+            self.log_text.insert(tk.END, elapsed_msg, "bold")
         self.log_text.see(tk.END)
 
     def choose_domain_file(self):
@@ -153,44 +163,52 @@ class DomainResolverApp(tk.Tk):
             self.domain_file_path.set(file_path)
 
     def start_resolving(self):
-        if not self.domain_file_path.get():
-            messagebox.showerror("错误", "请选择域名文件")
+        domain_file = self.domain_file_path.get()
+        if not domain_file:
+            self.log_text.insert(tk.END, "错误: 请选择域名文件\n", "bold")
             return
 
-        domain_file = self.domain_file_path.get()
+        domains = read_domains(domain_file)
+        if domains is None:
+            self.log_text.insert(tk.END, f"文件不存在: {domain_file}\n", "bold")
+            return
+
         dns_server = self.dns_server.get()
         self.stop_event.clear()
 
         current_time = datetime.now().strftime("%Y%m%d%H%M%S")
-        output_file = f'domain_ips_{current_time}.xlsx'
+        self.output_file = f'domain_ips_{current_time}.xlsx'
 
-        domains = read_domains(domain_file)
         total = len(domains)
         self.progress["maximum"] = total
         self.progress["value"] = 0
+        self.progress_label_left["text"] = "0%"
+        self.progress_label_right["text"] = f"0/{total}"
 
         def progress_callback(completed, total):
             self.progress["value"] = completed
-
-        def on_complete(elapsed_time):
-            messagebox.showinfo("完成", f"解析结果已保存到 {output_file}\n总耗时: {elapsed_time:.2f}秒")
+            percentage = (completed / total) * 100
+            self.progress_label_left["text"] = f"{percentage:.0f}%"
+            self.progress_label_right["text"] = f"{completed}/{total}"
 
         def run():
             start_time = time.time()
             self.log_message(0, total, 0)
             results = resolve_domains(domains, dns_server, progress_callback, self.log_message, self.stop_event)
             if not self.stop_event.is_set():
-                self.log_message(total, total, time.time() - start_time)
+                self.log_message(total, total, time.time() - start_time, end=True)
                 self.log_text.insert(tk.END, LOG_PROCESSING_START, "bold")
-                write_to_excel(results, output_file)
-                elapsed_time = time.time() - start_time
-                self.log_text.insert(tk.END, LOG_PROCESSING_END.format(output_file), "bold")
-                self.after(0, on_complete, elapsed_time)
+                write_to_excel(results, self.output_file)
+                self.log_text.insert(tk.END, LOG_PROCESSING_END.format(self.output_file), "bold")
 
         threading.Thread(target=run).start()
 
     def stop_resolving(self):
         self.stop_event.set()
+        self.progress["value"] = 0
+        self.progress_label_left["text"] = "0%"
+        self.progress_label_right["text"] = "0/0"
+        self.log_text.insert(tk.END, "解析已停止\n", "bold")
 
 if __name__ == "__main__":
     app = DomainResolverApp()
