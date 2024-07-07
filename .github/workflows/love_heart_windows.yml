@@ -2,6 +2,9 @@ name: 画爱心Windows版
 
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - love_heart.py
 
 permissions:
   contents: read
