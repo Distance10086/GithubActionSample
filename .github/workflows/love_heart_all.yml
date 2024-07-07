@@ -1,4 +1,4 @@
-name: Cross-Platform Build
+name: ALL Build
 
 on:
   workflow_dispatch:
@@ -14,10 +14,10 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: '3.12'
 
@@ -32,14 +32,20 @@ jobs:
           upload_exe_with_name: 'love_heart_windows'
           options: --onefile --name "love_heart" --windowed
 
+      - name: Upload Executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: love_heart_windows
+          path: dist/love_heart.exe
+
   build-linux:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: '3.12'
 
@@ -51,9 +57,9 @@ jobs:
 
       - name: Create Executable
         run: pyinstaller --onefile --name "love_heart_linux" love_heart.py
-        
+
       - name: Upload Executable
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: love_heart_linux
           path: dist/love_heart_linux
