@@ -32,6 +32,12 @@ jobs:
           upload_exe_with_name: 'love_heart_windows'
           options: --onefile --name "love_heart" --windowed
 
+      - name: Upload Executable
+        uses: actions/upload-artifact@v3
+        with:
+          name: love_heart_windows
+          path: dist/love_heart.exe
+
   build-linux:
     runs-on: ubuntu-latest
     steps:
@@ -51,3 +57,9 @@ jobs:
 
       - name: Create Executable
         run: pyinstaller --onefile --name "love_heart_linux" love_heart.py
+
+      - name: Upload Executable
+        uses: actions/upload-artifact@v3
+        with:
+          name: love_heart_linux
+          path: dist/love_heart_linux
