@@ -1,6 +1,3 @@
-# This workflow will install Python dependencies, run tests and lint with a single version of Python
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
-
 name: 画爱心Windows版
 
 on:
@@ -13,10 +10,21 @@ jobs:
   pyinstaller-build:
     runs-on: windows-latest
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+        
       - name: Create Executable
         uses: sayyid5416/pyinstaller@v1
         with:
           python_ver: '3.12'
           spec: 'love_heart.py'
           upload_exe_with_name: 'love_heart'
-          options: --onefile, --name "love_heart", --windowed, 
+          options: --onefile, --name "love_heart", --windowed
