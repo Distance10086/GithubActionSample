@@ -1,0 +1,83 @@
+name: Cross-Platform Build
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - love_heart.py
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Create Executable
+        uses: sayyid5416/pyinstaller@v1
+        with:
+          python_ver: '3.12'
+          spec: 'love_heart.py'
+          upload_exe_with_name: 'love_heart_windows'
+          options: --onefile --name "love_heart" --windowed
+
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Create Executable
+        run: pyinstaller --onefile --name "love_heart_linux" --windowed love_heart.py
+
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Install Android build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y openjdk-8-jdk wget
+          wget https://dl.google.com/android/repository/sdk-tools-linux-4333796.zip
+          mkdir -p $HOME/Android/Sdk
+          unzip -q sdk-tools-linux-4333796.zip -d $HOME/Android/Sdk
+          echo "export ANDROID_HOME=$HOME/Android/Sdk" >> $HOME/.bashrc
+          echo "export PATH=$PATH:$ANDROID_HOME/tools/bin" >> $HOME/.bashrc
+          source $HOME/.bashrc
+          yes | sdkmanager --licenses
+          sdkmanager --update
+          sdkmanager "platforms;android-28" "build-tools;28.0.3"
+
+      - name: Build for Android
+        run: |
+          pip install p4a
+          p4a apk --private . --package=org.example.love_heart --name=love_heart --version=0.1 --bootstrap=sdl2 --requirements=python3,kivy --arch=arm64-v8a --copy-libs
