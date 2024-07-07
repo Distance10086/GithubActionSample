@@ -1,4 +1,4 @@
-name: Cross-Platform Build
+name: ALL Build
 
 on:
   workflow_dispatch:
